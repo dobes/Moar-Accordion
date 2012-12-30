@@ -15,11 +15,14 @@ const MAX_SOURCE_TITLE_WIDTH = 180;
 const ANIMATION_TIME = 0.2;
 
 function init() {
-	//let tray = MessageTray.MessageTray.prototype;
-	//tray.add = 
+	let tray = MessageTray.MessageTray.prototype;	
+	tray._oldAdd = tray.add;
+	SummaryItem.prototype._oldinit = SummaryItem.prototype._init;
 }
 
 function enable() {
+	let tray = MessageTray.MessageTray.prototype;
+	
 	SummaryItem.prototype._init = function(source) {
 		this.source = source;
 		this.source.connect('notification-added', Lang.bind(this, this._notificationAddedToSource));
@@ -52,10 +55,6 @@ function enable() {
 		this._sourceBox.add(this._sourceIcon, { y_fill: false });
 		this._sourceBox.add(this._sourceTitleBin, { expand: true, y_fill: false });
 		this.actor.child = this._sourceBox;
-
-		//this._sourceIcon = source.getSummaryIcon();
-		//this._sourceBox.add(this._sourceIcon, { y_fill: false });
-		//this.actor.child = this._sourceBox;
 
 		this.notificationStackWidget = new St.Widget({ layout_manager: new Clutter.BinLayout() });
 
@@ -108,15 +107,15 @@ function enable() {
 		this.actor.label_actor.clutter_text.ellipsize = mode;
 	    };
 	    
-	MessageTray.MessageTray.prototype._expandedSummaryItem = null;
+	tray._expandedSummaryItem = null;
 	// To simplify the summary item animation code, we pretend
         // that there's an invisible SummaryItem to the left of the
         // leftmost real summary item, and that it's expanded when all
         // of the other items are collapsed.
-        MessageTray.MessageTray.prototype._imaginarySummaryItemTitleWidth = 0;
-        MessageTray.MessageTray.prototype._summaryItemTitleWidth = 0;
+        tray._imaginarySummaryItemTitleWidth = 0;
+        tray._summaryItemTitleWidth = 0;
 
-	MessageTray.MessageTray.prototype.add = function(source) {
+	tray.add = function(source) {
 		if (this.contains(source)) {
 		    log('Trying to re-add source ' + source.title);
 		    return;
@@ -131,7 +130,6 @@ function enable() {
 		    this._summary.insert_child_at_index(summaryItem.actor, this._chatSummaryItemsCount);
 		}
 		
-		///////////////////
 		let titleWidth = summaryItem.getTitleNaturalWidth();
 		if (titleWidth > this._summaryItemTitleWidth) {
 		    this._summaryItemTitleWidth = titleWidth;
@@ -139,7 +137,6 @@ function enable() {
 		        this._imaginarySummaryItemTitleWidth = titleWidth;
 		    this._longestSummaryItem = summaryItem;
 		}
-		///////////////////
 
 		this._summaryItems.push(summaryItem);
 
@@ -180,12 +177,12 @@ function enable() {
 		this.emit('summary-item-added', summaryItem);
 	    };
 	    
-    MessageTray.MessageTray.prototype._onSummaryItemHoverChanged = function(summaryItem) {
+    tray._onSummaryItemHoverChanged = function(summaryItem) {
 		if (summaryItem.actor.hover)
 		    this._setExpandedSummaryItem(summaryItem);
-	    };
+    };
 
-    MessageTray.MessageTray.prototype._setExpandedSummaryItem= function(summaryItem) {
+    tray._setExpandedSummaryItem= function(summaryItem) {
 
         if (summaryItem == this._expandedSummaryItem)
             return;
@@ -224,15 +221,14 @@ function enable() {
                            onCompleteScope: this });
     };
 
-    MessageTray.MessageTray.prototype.__defineGetter__("_expandedSummaryItemTitleWidth", 	function() {
+    tray.__defineGetter__("_expandedSummaryItemTitleWidth", 	function() {
         if (this._expandedSummaryItem)
             return this._expandedSummaryItem.getTitleWidth();
         else
             return this._imaginarySummaryItemTitleWidth;
-       }
-    );
+    });
 
-    MessageTray.MessageTray.prototype.__defineSetter__("_expandedSummaryItemTitleWidth",  	function(expansion) {
+    tray.__defineSetter__("_expandedSummaryItemTitleWidth",  	function(expansion) {
         expansion = Math.round(expansion);
         // Expand the expanding item to its new width
         if (this._expandedSummaryItem)
@@ -290,15 +286,14 @@ function enable() {
                 }
             }
         }
-      }
-    );
+    });
 
-    MessageTray.MessageTray.prototype._expandSummaryItemCompleted = function() {
+    tray._expandSummaryItemCompleted = function() {
         if (this._expandedSummaryItem)
             this._expandedSummaryItem.setEllipsization(Pango.EllipsizeMode.END);
     }
     
-    MessageTray.MessageTray.prototype._hideSummary = function() {
+    tray._hideSummary = function() {
         this._tween(this._summary, '_summaryState', MessageTray.State.HIDDEN,
                     { opacity: 0,
                       time: ANIMATION_TIME,
@@ -308,10 +303,15 @@ function enable() {
                     });
     };
     
-    MessageTray.MessageTray.prototype._hideSummaryCompleted = function() {
+    tray._hideSummaryCompleted = function() {
         this._setExpandedSummaryItem(null);
     };
 }
 
 function disable() {
+	let tray = MessageTray.MessageTray.prototype;	
+	tray.add = tray._oldAdd;
+	tray._onSummaryItemHoverChanged = function(summaryItem) {};
+	
+	SummaryItem.prototype._init = SummaryItem.prototype._oldinit;
 }
